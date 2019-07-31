@@ -6,7 +6,7 @@ Script to process miniscope data and quantify activity (e.g. spontaneous peaks a
 * Download and install [MATLAB][MATLAB].
 * Download and extract source files to `Documents/MATLAB`
 
-# Analyze
+## Analyze
 * Set the variables within the script to match your data files.
 * Define epochs.
 * Change settings and thresholds to compute peaks and clusters.
@@ -15,7 +15,7 @@ Script to process miniscope data and quantify activity (e.g. spontaneous peaks a
 Epochs consists of labeled arrays of timestamps (s) and share a common window size.
 For example,
 ```MATLAB
-  epochs = {'A', 100, 'B', [200 2000], 'C', '300'};
+  epochs = {'A', 100, 'B', [200 2000], 'C', 300};
   windowSize = 10;
 ```
 Means there are three epochs called A, B, and C:
