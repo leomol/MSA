@@ -60,8 +60,8 @@ eventCounts = cellfun(@numel, epochs(2:2:end));
 eventStart = [0, cumsum(eventCounts(1:end - 1))] + 1;
 eventEnd = eventStart + eventCounts - 1;
 
-% Normalize all traces.
-data(:) = zscore(data(:));
+% Normalize each trace separately.
+data = zscore(data);
 
 %% Find peaks.
 filterOrder = 12;
@@ -164,7 +164,6 @@ xx = repmat(time, 1, nCells);
 yy = bsxfun(@plus, separation, data);
 plot(xx, yy, 'HandleVisibility', 'off');
 plot(xx(epochPeaksBool), yy(epochPeaksBool), 'k.', 'HandleVisibility', 'off');
-
 axis('tight');
 ylims = ylim();
 for e = 1:nEpochs
@@ -230,9 +229,9 @@ for e = 1:nEpochs
         clusters = cluster(z, 'criterion', 'distance', 'cutoff', cutoff);
         [~, order] = sort(clusters);
     end
-    subplot(1, nEpochs, e)
+    subplot(1, nEpochs, e);
     imagesc(xcMatrix(order, order));
     axis('equal', 'square', 'tight')
     caxis(clims);
-    title(epochName)
+    title(epochName);
 end
