@@ -7,7 +7,8 @@ Script to process miniscope data and quantify activity (e.g. spontaneous peaks a
 * Download and extract source files to `Documents/MATLAB`
 
 ## Analyze
-* Set the variables within the script to match your data files.
+* Create a copy of the example script.
+* Change the configuration variables and the data loader according to your data acquisition system.
 * Define epochs.
 * Change settings and thresholds to compute peaks and clusters.
 * Click `Run` or execute section by section.

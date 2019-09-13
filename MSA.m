@@ -10,24 +10,27 @@
 %   C: 300 to 310
 
 % 2019-03-22. Leonardo Molina.
-% 2019-07-31. Last modified.
+% 2019-09-13. Last modified.
+
+%% Add dependencies.
+addpath('common');
 
 %% Settings.
 % epochs: Epochs contain start times relative to the beginning of the recording.
 % window: Length of the windows to compare (s).
-dataFilename = 'C:\Users\molina\Documents\public\HALO\data\Miniscope\miniscope filtered aligned.xlsx';
-data = loadInscopixData(dataFilename, 1);
-epochs = {'Pre', 100, 'During', 400, 'Post', 700};
-epochWindow = 60;
+dataFilename = 'data/Miniscope/miniscope STS filtered.xlsx';
+data = loadData(dataFilename, 1);
+epochs = {'Pre', 60, 'During', 360, 'FS', 660, 'post' 960};
+epochWindow = 180;
 
-% dataFilename = 'C:\Users\molina\Documents\public\HALO\data\P0001.xlsx';
-% data = loadInscopixData(dataFilename, 2);
+% dataFilename = 'data/P0001.xlsx';
+% data = loadData(dataFilename, 2);
 % epochs = {'Pre', 180, 'During', 420, 'Post', 720};
 % epochWindow = 60;
 
-% dataFilename = 'C:\Users\molina\Documents\public\HALO\data\Octavia\Octavia 17sec airpuff.csv';
-% ttlFilename = 'C:\Users\molina\Documents\public\HALO\data\Octavia\Octavia 17sec airpuff TTL.csv';
-% data = loadDoricData(dataFilename);
+% dataFilename = 'data/Octavia/Octavia 17sec airpuff.csv';
+% ttlFilename = 'data/Octavia/Octavia 17sec airpuff TTL.csv';
+% data = loadData(dataFilename);
 % ttl = loadDoricTTL(ttlFilename);
 % epochs = {'TTL stimulation', ttl, 'TTL baseline', ttl - 4};
 % epochWindow = 3;
@@ -36,8 +39,8 @@ epochWindow = 60;
 lag = 0.5;
 % Peak detection.
 peakThreshold = 2.0;
-peakThresholdingFunction = @std;
-peakLowpassFrequency = 0.5;
+peakThresholdingFunction = @mad;
+peakLowpassFrequency = 5;
 triggeredWindow = 2;
 % Hierarchical clustering parameters.
 clusteringDepth = 5;
@@ -60,7 +63,7 @@ eventCounts = cellfun(@numel, epochs(2:2:end));
 eventStart = [0, cumsum(eventCounts(1:end - 1))] + 1;
 eventEnd = eventStart + eventCounts - 1;
 
-% Normalize each trace separately.
+% Normalize traces.
 data = zscore(data);
 
 %% Find peaks.
@@ -149,32 +152,55 @@ for e = 1:nEvents
 end
 % Normalize.
 xcAll(:) = xcAll(:) / nEpochWindow;
-fprintf('%d pair-wise cross-correlations (%d cells, %d events, %d lags) in %.2fs.\n', nPairs * nEvents * nLags, nCells, nEvents, nLags, toc(ticker));
+fprintf('%d pair-wise cross-correlations (%d cells x %d events x %d lags) in %.2fs.\n', nPairs * nEvents * nLags, nCells, nEvents, nLags, toc(ticker));
 
 %% Plot traces and event windows.
-name = 'traces and events';
+name = 'Traces and events';
 figure('name', name);
 % Add space between traces.
 pad = 5 * std(data(:));
 separation = pad * ones(1, nCells);
 separation(1) = 0;
 separation = cumsum(separation);
-hold('all');
-xx = repmat(time, 1, nCells);
-yy = bsxfun(@plus, separation, data);
-plot(xx, yy, 'HandleVisibility', 'off');
-plot(xx(epochPeaksBool), yy(epochPeaksBool), 'k.', 'HandleVisibility', 'off');
-axis('tight');
-ylims = ylim();
+ylims = [separation(1) + min(data(:, 1)), separation(end) + max(data(:, end))];
+patches = cell(nEpochs, 1);
 for e = 1:nEpochs
     epochTimes = epochs{2 * e};
     epochName = epochs{2 * e - 1};
     [faces, vertices] = patchEpochs([epochTimes; epochTimes + epochWindow], ylims(1), ylims(2));
-    patch('Faces', faces, 'Vertices', vertices, 'FaceColor', cmap(e, :), 'EdgeColor', 'none', 'FaceAlpha', 0.50, 'DisplayName', sprintf('%s - Peaks:%i', epochName, sum(epochPeakCount(e, :))));
+    patches{e} = patch('Faces', faces, 'Vertices', vertices, 'FaceColor', cmap(e, :), 'EdgeColor', 'none', 'FaceAlpha', 0.50, 'DisplayName', sprintf('%s | peaks:%i', epochName, sum(epochPeakCount(e, :))));
 end
+patches = [patches{:}];
+hold('all');
+xx = repmat(time, 1, nCells);
+yy = bsxfun(@plus, separation, data);
+lines = plot(xx, yy, 'LineWidth', 0.5, 'HandleVisibility', 'off');
+plot(xx(epochPeaksBool), yy(epochPeaksBool), 'k.', 'HandleVisibility', 'off');
+axis('tight');
 legend('show');
-set(gca, 'YTick', []);
+set(gca, 'YTick', separation, 'YTickLabel', 1:nCells);
 xlabel('Time (s)');
+
+%% Verify ids.
+h = plot(NaN(2, 1), NaN(2, 1), 'LineWidth', 2, 'LineStyle', '-', 'Color', [1, 0, 0]);
+for e = 1:nEpochs
+    for c = 1:nCells
+        set(h, 'XData', time(ids(:, e, 1)), 'YData', data(ids(:, e, c)) + separation(c));
+        pause(0.050);
+    end
+end
+delete(h);
+
+%% Verify cross-correlation for a given pair.
+pair = [2, 10];
+pairId = find(all(pairs == pair(1) | pairs == pair(2), 2));
+set(lines, 'LineWidth', 0.5);
+set(lines(pair), 'LineWidth', 4);
+for e = 1:nEpochs
+    epochName = epochs{2 * e - 1};
+    xc = xcorr(data(ids(:, e, pair(1))), data(ids(:, e, pair(2))), 0) / nEpochWindow;
+    patches(e).DisplayName = sprintf('xcorr:%.4f==%.4f? | %s | peaks:%i.', xcAll(lag0, e, pairId), xc, epochName, sum(epochPeakCount(e, :)));
+end
 
 %% Plot cross-correlation.
 name = 'Cross-correlation';
@@ -197,7 +223,7 @@ xlabel('time (s)');
 ylabel('Cross-correlation');
 legend('show');
 
-%% Plot cross-correlation (zero lag) over time.
+%% Plot cross-correlation (zero lag) for each epoch.
 name = 'Cross-correlation (zero lag)';
 figure('name', name);
 title(name);
@@ -205,7 +231,7 @@ hold('all');
 for e = 1:nEpochs
     epochTimes = epochs{2 * e};
     epochName = epochs{2 * e - 1};
-    xc = mean(xcAll(lag0, eventStart(e):eventEnd(e), :), 3);
+    xc = mean(mean(xcAll(lag0, eventStart(e):eventEnd(e), :), 3), 2);
     plot(epochTimes, xc, 'Color', cmap(e, :), 'LineStyle', '-', 'Marker', 'o', 'DisplayName', epochName);
 end
 xlabel('Time (s)');
