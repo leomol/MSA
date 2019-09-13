@@ -174,7 +174,7 @@ patches = [patches{:}];
 hold('all');
 xx = repmat(time, 1, nCells);
 yy = bsxfun(@plus, separation, data);
-lines = plot(xx, yy, 'LineWidth', 0.5, 'HandleVisibility', 'off');
+hs = plot(xx, yy, 'LineWidth', 0.5, 'HandleVisibility', 'off');
 plot(xx(epochPeaksBool), yy(epochPeaksBool), 'k.', 'HandleVisibility', 'off');
 axis('tight');
 legend('show');
@@ -194,8 +194,8 @@ delete(h);
 %% Verify cross-correlation for a given pair of cells.
 pair = [2, 10];
 pairId = find(all(pairs == pair(1) | pairs == pair(2), 2));
-set(lines, 'LineWidth', 0.5);
-set(lines(pair), 'LineWidth', 4);
+set(hs, 'LineWidth', 0.5);
+set(hs(pair), 'LineWidth', 4);
 for e = 1:nEpochs
     epochName = epochs{2 * e - 1};
     xc = xcorr(data(ids(:, e, pair(1))), data(ids(:, e, pair(2))), 0) / nEpochWindow;
