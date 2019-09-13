@@ -18,18 +18,18 @@ addpath('common');
 %% Settings.
 % epochs: Epochs contain start times relative to the beginning of the recording.
 % window: Length of the windows to compare (s).
-dataFilename = 'data/Miniscope/miniscope STS filtered.xlsx';
+dataFilename = 'C:\Users\molina\Documents\public\HALO\data/Miniscope/miniscope STS filtered.xlsx';
 data = loadData(dataFilename, 1);
 epochs = {'Pre', 60, 'During', 360, 'FS', 660, 'post' 960};
 epochWindow = 180;
 
-% dataFilename = 'data/P0001.xlsx';
+% dataFilename = 'C:\Users\molina\Documents\public\HALO\data/P0001.xlsx';
 % data = loadData(dataFilename, 2);
 % epochs = {'Pre', 180, 'During', 420, 'Post', 720};
 % epochWindow = 60;
 
-% dataFilename = 'data/Octavia/Octavia 17sec airpuff.csv';
-% ttlFilename = 'data/Octavia/Octavia 17sec airpuff TTL.csv';
+% dataFilename = 'C:\Users\molina\Documents\public\HALO\data/Octavia/Octavia 17sec airpuff.csv';
+% ttlFilename = 'C:\Users\molina\Documents\public\HALO\data/Octavia/Octavia 17sec airpuff TTL.csv';
 % data = loadData(dataFilename);
 % ttl = loadDoricTTL(ttlFilename);
 % epochs = {'TTL stimulation', ttl, 'TTL baseline', ttl - 4};
@@ -181,8 +181,8 @@ legend('show');
 set(gca, 'YTick', separation, 'YTickLabel', 1:nCells);
 xlabel('Time (s)');
 
-%% Verify ids.
-h = plot(NaN(2, 1), NaN(2, 1), 'LineWidth', 2, 'LineStyle', '-', 'Color', [1, 0, 0]);
+%% Verify ids by plotting one trace at a time.
+h = plot(NaN(2, 1), NaN(2, 1), 'LineWidth', 2, 'LineStyle', '-', 'Color', [1, 0, 0], 'HandleVisibility', 'off');
 for e = 1:nEpochs
     for c = 1:nCells
         set(h, 'XData', time(ids(:, e, 1)), 'YData', data(ids(:, e, c)) + separation(c));
@@ -191,7 +191,7 @@ for e = 1:nEpochs
 end
 delete(h);
 
-%% Verify cross-correlation for a given pair.
+%% Verify cross-correlation for a given pair of cells.
 pair = [2, 10];
 pairId = find(all(pairs == pair(1) | pairs == pair(2), 2));
 set(lines, 'LineWidth', 0.5);
