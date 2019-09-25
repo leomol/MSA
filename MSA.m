@@ -10,7 +10,7 @@
 %   C: 300 to 310
 
 % 2019-03-22. Leonardo Molina.
-% 2019-09-13. Last modified.
+% 2019-09-25. Last modified.
 
 %% Add dependencies.
 addpath('common');
@@ -18,18 +18,25 @@ addpath('common');
 %% Settings.
 % epochs: Epochs contain start times relative to the beginning of the recording.
 % window: Length of the windows to compare (s).
-dataFilename = 'C:\Users\molina\Documents\public\HALO\data/Miniscope/miniscope STS filtered.xlsx';
-data = loadData(dataFilename, 1);
-epochs = {'Pre', 60, 'During', 360, 'FS', 660, 'post' 960};
-epochWindow = 180;
+% dataFilename = 'C:/Users/molina/Documents/public/HALO/data/Miniscope/miniscope STS filtered.xlsx';
+% data = loadData(dataFilename, 1);
+% epochs = {'Pre', 60, 'During', 360, 'FS', 660, 'post' 960};
+% epochWindow = 180;
 
-% dataFilename = 'C:\Users\molina\Documents\public\HALO\data/P0001.xlsx';
+dataFilename = 'C:\Users\molina\Documents\public\MATLAB\MSA\data\Miniscope.csv';
+ttlFilename = 'C:\Users\molina\Documents\public\MATLAB\MSA\data\MiniscopeTTL.csv';
+data = loadData(dataFilename);
+ttl = loadDoricTTL(ttlFilename);
+epochs = {'TTL stimulation', ttl, 'TTL baseline', ttl - 4};
+epochWindow = 3;
+
+% dataFilename = 'C:/Users/molina/Documents/public/HALO/data/P0001.xlsx';
 % data = loadData(dataFilename, 2);
 % epochs = {'Pre', 180, 'During', 420, 'Post', 720};
 % epochWindow = 60;
 
-% dataFilename = 'C:\Users\molina\Documents\public\HALO\data/Octavia/Octavia 17sec airpuff.csv';
-% ttlFilename = 'C:\Users\molina\Documents\public\HALO\data/Octavia/Octavia 17sec airpuff TTL.csv';
+% dataFilename = 'C:/Users/molina/Documents/public/HALO/data/Octavia/Octavia 17sec airpuff.csv';
+% ttlFilename = 'C:/Users/molina/Documents/public/HALO/data/Octavia/Octavia 17sec airpuff TTL.csv';
 % data = loadData(dataFilename);
 % ttl = loadDoricTTL(ttlFilename);
 % epochs = {'TTL stimulation', ttl, 'TTL baseline', ttl - 4};
@@ -183,10 +190,10 @@ xlabel('Time (s)');
 
 %% Verify ids by plotting one trace at a time.
 h = plot(NaN(2, 1), NaN(2, 1), 'LineWidth', 2, 'LineStyle', '-', 'Color', [1, 0, 0], 'HandleVisibility', 'off');
-for e = 1:nEpochs
+for e = 1:nEvents
     for c = 1:nCells
         set(h, 'XData', time(ids(:, e, 1)), 'YData', data(ids(:, e, c)) + separation(c));
-        pause(0.050);
+        pause(0.025);
     end
 end
 delete(h);
