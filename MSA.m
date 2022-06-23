@@ -75,7 +75,7 @@ classdef MSA < handle
             defaults.eventTimes = [];
             defaults.resamplingFrequency = NaN;
             defaults.lowpassFrequency = Inf;
-            defaults.peakSeparation = 2.0;
+            defaults.peakSeparation = 0.5;
             defaults.f0 = 0.0;
             defaults.f1 = 1.0;
             defaults.thresholdEpochs = NaN;
