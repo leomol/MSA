@@ -1,3 +1,5 @@
+% 2019-03-22. Leonardo Molina.
+% 2022-06-23. Last modified.
 classdef MSA < handle
     properties
         configuration
