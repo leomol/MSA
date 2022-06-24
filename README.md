@@ -5,7 +5,7 @@ Script to process single unit data and quantify activity (e.g. spontaneous peaks
 ## Installation
 - Download and install [MATLAB][MATLAB].
 - Download and extract source files to `Documents/MATLAB`
-- For analyses involving deconvolution of CA²⁺ data, download and extract the OASIS, and run `oasis_setup.m`.
+- For analyses involving deconvolution of CA²⁺ data, download and implement such library in the code. For example, download [OASIS library](https://github.com/zhoupc/OASIS_matlab), run `oasis_setup.m`, and use one of the examples under [examples](examples).
 
 ## Usage
 - Run `setup.m` to add FPA dependencies to the MATLAB search path.
