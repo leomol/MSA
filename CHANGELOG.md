@@ -1,4 +1,6 @@
 ## Changelog
+* 2022-06-29
+	- Add method to export spike and peak counts.
 * 2022-06-23
 	- Turned script into an class.
 * 2019-07-31

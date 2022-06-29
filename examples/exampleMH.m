@@ -27,6 +27,9 @@ cellfun(@warning, msa.warnings);
 msa.plotTrace();
 msa.plotTriggerAverage();
 
+% Export data.
+msa.export('exported');
+
 function spikes = deconvolve(trace)
     [~, spikes, ~] = deconvolveCa(trace, 'foopsi', 'ar1', 'smin', -3, 'optimize_pars', true, 'optimize_b', true);
 end

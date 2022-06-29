@@ -19,7 +19,7 @@ Epochs consists of an array of timestamps indicating start and stop times (in se
 ```MATLAB
   epochs = {'A', [100, 200], 'B', [200, 500], 'C', [500, 600, 600, 700]};
 ```
-Means there are three epochs called A, B, and C:
+means there are three epochs called A, B, and C:
 ```
 A: 100 to 200
 B: 200 to 500

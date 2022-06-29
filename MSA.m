@@ -1,5 +1,5 @@
 % 2019-03-22. Leonardo Molina.
-% 2022-06-23. Last modified.
+% 2022-06-29. Last modified.
 classdef MSA < handle
     properties
         configuration
@@ -167,9 +167,6 @@ classdef MSA < handle
             for u = 1:nCells
                 peakThreshold(u) = threshold(configuration.threshold, dff(thresholdId, u));
                 if any(+dff(:, u) >= peakThreshold(u))
-                    % !!
-                    %[~, k, peakWidth] = findpeaks(+dff(:, u), time, 'MinPeakHeight', peakThreshold(u), 'MinPeakDistance', configuration.peakSeparation, 'WidthReference', 'halfheight');
-                    %k = intersect(find(ismember(time, k)), thresholdId);
                     [~, k, peakWidthCell] = findpeaks(+dff(:, u), 'MinPeakHeight', peakThreshold(u), 'MinPeakDistance', configuration.peakSeparation * frequency, 'WidthReference', 'halfheight');
                     peakMaskAll(k, u) = true;
                     peakWidth = cat(1, peakWidth, peakWidthCell(ismember(k, ids)));
@@ -256,7 +253,7 @@ classdef MSA < handle
                 duration(c) = numel(ids) / frequency;
                 area(c, :) = trapz(dff(ids, :)) / frequency;
             end
-
+            
             % Replicate epoch ids for each cell column.
             epochIds = arrayfun(@(k) epochIds + k, linearIds(1, :) - 1, 'UniformOutput', false);
             epochIds = cat(1, epochIds{:});
@@ -264,7 +261,7 @@ classdef MSA < handle
             % Normalize area according to epoch length.
             normalizedArea = bsxfun(@rdivide, area, duration);
             normalizedArea(duration == 0) = 0;
-
+            
             % Compute firing rate.
             firingRate = bsxfun(@rdivide, spikeCounts, duration);
             firingRate(duration == 0) = 0;
@@ -308,7 +305,7 @@ classdef MSA < handle
             obj.normalizedArea = normalizedArea;
             obj.firingRate = firingRate;
         end
-
+        
         function plot(obj)
             obj.plotTrace();
             obj.plotTriggerAverage();
@@ -342,11 +339,13 @@ classdef MSA < handle
             for c = 1:obj.nConditions
                 epochName = obj.configuration.conditionEpochs{2 * c - 1};
                 epochTimes = obj.configuration.conditionEpochs{2 * c};
+                epochTimes(epochTimes == -Inf) = min(obj.time);
+                epochTimes(epochTimes == +Inf) = max(obj.time);                
                 [faces, vertices] = patchEpochs(epochTimes, ylims(1), ylims(2));
                 if isempty(obj.spikes)
                     label = sprintf('%s | peaks:%i', epochName, sum(obj.peakCounts(c, :)));
                 else
-                    label = sprintf('%s | peaks:%i | firing rate:%.2f (Hz)', epochName, sum(obj.peakCounts(c, :)), mean(obj.firingRate(c, :)));
+                    label = sprintf('%s | peaks:%i | spikes:%i', epochName, sum(obj.peakCounts(c, :)), sum(obj.spikeCounts(c, :)));
                 end
                 patch('Faces', faces, 'Vertices', vertices, 'FaceColor', obj.cmap(c, :), 'EdgeColor', 'none', 'FaceAlpha', 0.50, 'DisplayName', label);
             end
@@ -387,16 +386,25 @@ classdef MSA < handle
                 ylabel('df/f');
                 title('Event-triggered average');
             end
+        end
+        
+        function export(obj, prefix)
+            prefix = regexprep(prefix, '/$', '');
+            [folder, basename] = fileparts(prefix);
             
-            figs(2) = figure('name', 'MSA: start-triggered average');
-            plotTriggerAverage(obj.dff, obj.epochIds(1:2:end)', obj.epochLabels, obj.windowTemplate, obj.frequency, obj.configuration.conditionEpochs(1:2:end), obj.cmap);
-            ylabel('df/f');
-            title('Start-triggered average');
+            % Save peak counts per epoch and cell to file.
+            output = fullfile(folder, sprintf('%s - peak count.csv', basename));
+            fid = fopen(output, 'w');
+            fprintf(fid, '# Peak count. Columns = cells. Rows = epochs.\n');
+            fprintf(fid, [strjoin(repmat({'%d'}, 1, obj.nCells), ',') '\n'], obj.peakCounts');
+            fclose(fid);
             
-            figs(3) = figure('name', 'MSA: stop-triggered average');
-            plotTriggerAverage(obj.dff, obj.epochIds(2:2:end)', obj.epochLabels, obj.windowTemplate, obj.frequency, obj.configuration.conditionEpochs(1:2:end), obj.cmap);
-            ylabel('df/f');
-            title('Stop-triggered average');
+            % Save spike counts per epoch and cell to file.
+            output = fullfile(folder, sprintf('%s - spike count.csv', basename));
+            fid = fopen(output, 'w');
+            fprintf(fid, '# Spike count. Columns = cells. Rows = epochs.\n');
+            fprintf(fid, [strjoin(repmat({'%d'}, 1, obj.nCells), ',') '\n'], obj.spikeCounts');
+            fclose(fid);
         end
     end
 end
