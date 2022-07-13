@@ -6,9 +6,11 @@ data = loadData(inputDataFile);
 configuration = struct();
 configuration.conditionEpochs = {'Baseline A', [0, 200], 'Drug A', [200, 250], 'Drug B', [400, Inf]};
 
-% Peaks are 2 std from the mean.
+% Peaks are 2 std from the mean of the first 100 seconds.
 configuration.threshold = {2.00, @std, @mean};
 configuration.triggeredWindow = 1.50;
+configuration.thresholdEpochs = [0.00, 100.00];
+configuration.peakDetectionMode = 'prominence';
 
 % Provide spikes or a function to deconvolve the flourescence from each cell.
 if exist('deconvolveCa.m', 'file') == 2

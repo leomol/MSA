@@ -1,4 +1,6 @@
 ## Changelog
+* 2022-07-13
+	- Added option for detecting peaks using prominence or height (default).
 * 2022-06-29
 	- Add method to export spike and peak counts.
 * 2022-06-23

@@ -1,5 +1,5 @@
 % 2019-03-22. Leonardo Molina.
-% 2022-06-29. Last modified.
+% 2022-07-13. Last modified.
 classdef MSA < handle
     properties
         configuration
@@ -82,6 +82,7 @@ classdef MSA < handle
             defaults.threshold = {2.91, @mad, @median};
             defaults.triggeredWindow = 10.0;
             defaults.spikes = [];
+            defaults.peakDetectionMode = 'height';
             
             % Override defaults with user parameters.
             configuration = defaults;
@@ -94,6 +95,14 @@ classdef MSA < handle
                 else
                     obj.warnings{end + 1} = warn('[parsing] "%s" is not a valid parameter.', name);
                 end
+            end
+            
+            options = {'MinPeakHeight', 'MinPeakProminence'};
+            k = strcmpi(configuration.peakDetectionMode, {'height', 'prominence'});
+            if any(k)
+                peakDetectionMode = options{k};
+            else
+                error('peakDetectionMode must be either "height" or "prominence"');
             end
             
             % Resampling frequency defaults to the smallest between 100Hz and the source frequency.
@@ -166,8 +175,11 @@ classdef MSA < handle
             ids = time2id(time, [configuration.conditionEpochs{2:2:end}]);
             for u = 1:nCells
                 peakThreshold(u) = threshold(configuration.threshold, dff(thresholdId, u));
+                if strcmp(peakDetectionMode, 'MinPeakProminence')
+                    peakThreshold(u) = abs(peakThreshold(u));
+                end
                 if any(+dff(:, u) >= peakThreshold(u))
-                    [~, k, peakWidthCell] = findpeaks(+dff(:, u), 'MinPeakHeight', peakThreshold(u), 'MinPeakDistance', configuration.peakSeparation * frequency, 'WidthReference', 'halfheight');
+                    [~, k, peakWidthCell] = findpeaks(+dff(:, u), peakDetectionMode, peakThreshold(u), 'MinPeakDistance', configuration.peakSeparation * frequency, 'WidthReference', 'halfheight');
                     peakMaskAll(k, u) = true;
                     peakWidth = cat(1, peakWidth, peakWidthCell(ismember(k, ids)));
                 end
