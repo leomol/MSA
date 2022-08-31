@@ -1,3 +1,4 @@
+
 # Single unit analisis
 Script to process single unit data and quantify activity (e.g. spontaneous peaks and correlations) on arbitrary epoch definitions.
 ![MSA example](etc/example.png)
@@ -26,8 +27,35 @@ B: 200 to 500
 C: 500 to 600 then 600 to 700
 ```
 
-## More
-TBD
+## Documentation
+
+`msa = MSA(data, configuration);`
+
+Normalize, filter, and detect peaks of spontaneous activity in user defined epochs.
+
+Each column in `data` corresponds to activity from individual cells.
+
+`configuration` is a struct with the following fields (defaults are used for missing fields):
+ - `conditionEpochs` - Epochs for different conditions: {'epoch1', [start1, end1, start2, end2, ...], 'epoch2', ...}
+ - `thresholdEpochs` - Epochs to include for peak threshold calculation.
+ - `events` - Event-triggered data; times at which a type of event occurs.
+ - `resamplingFrequency` - Resampling frequency (Hz).
+ - `lowpassFrequency` - Lowest frequency permitted in normalized signal.
+ - `peakSeparation` - Minimum time separation between two peaks.
+
+### Processing steps
+- Resample signal and reference to a given frequency.
+- Baseline correction modeled as an exponential decay of the low-pass filtered data (optionally using airPLS).
+- Correct for motion artifacts by subtracting reference to signal, after a polynomial fit (optional).
+- Remove fast oscillations with a low-pass filter.
+- Normalize data as df/f or z-score according to settings.
+- Find peaks of spontaneous activity in low-pass filtered data.
+
+Normalization is calculated as (f - f0) / f1 where f0 and f1 can be data provided by the
+user or calculated using given functions:
+
+See examples and source code for detailed analysis steps and default parameters.
+Units for time and frequency are seconds and hertz respectively.
 
 ## License
 © 2019 [Leonardo Molina][Leonardo Molina]
