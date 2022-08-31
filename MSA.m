@@ -1,5 +1,78 @@
+% msa = MSA(data, configuration);
+% 
+% Normalize, filter, and detect peaks of spontaneous
+% activity in user defined epochs.
+% 
+% Each column in data corresponds to activity from individual cells.
+% 
+% configuration is a struct with the following fields (defaults are used for missing fields):
+%     conditionEpochs - Epochs for different conditions: {'epoch1', [start1, end1, start2, end2, ...], 'epoch2', ...}
+%     thresholdEpochs - Epochs to include for peak threshold calculation.
+%     events - Event-triggered data; times at which a type of event occurs.
+%     resamplingFrequency - Resampling frequency (Hz).
+%     lowpassFrequency - Lowest frequency permitted in normalized signal.
+%     peakSeparation - Minimum time separation between two peaks.
+% 
+% Processing steps:
+%   -Resample signal and reference to a given frequency.
+% 	-Baseline correction modeled as an exponential decay of the low-pass filtered data (optionally using airPLS).
+% 	-Correct for motion artifacts by subtracting reference to signal, after a polynomial fit (optional).
+%   -Remove fast oscillations with a low-pass filter.
+% 	-Normalize data as df/f or z-score according to settings.
+% 	-Find peaks of spontaneous activity in low-pass filtered data.
+% 
+% Normalization is calculated as (f - f0) / f1 where f0 and f1 can be data provided by the
+% user or calculated using given functions:
+% 
+%     Normalization from given functions:
+%         f0 and f1 are common to all data points and calculated from all data:
+%             df/f:
+%                 configuration.f0 = @mean;
+%                 configuration.f1 = @mean;
+%             z-score:
+%                 configuration.f0 = @mean;
+%                 configuration.f1 = @std;
+%             z-score - option 1:
+%                 configuration.f0 = @median;
+%                 configuration.f1 = @mad;
+%             z-score - option 2:
+%                 configuration.f0 = @median;
+%                 configuration.f1 = @std;
+% 
+%         f0 and f1 are common to all data points and calculated at given epochs:
+%             df/f:
+%                 epochs = [0, 100, 500, 550, 1000, Inf]
+%                 configuration.f0 = {@mean, epochs};
+%                 configuration.f1 = {@mean, epochs};
+% 
+%         f0 and f1 are calculated for each data point based on a moving window:
+%             df/f:
+%                 window = 60;
+%                 configuration.f0 = {@movmean, window};
+%                 configuration.f1 = {@movmean, window};
+%             (further combinations possible with @movmean, @movmedian, @movstd, @movmad, @mov...).
+% 
+%     Normalization from given data:
+%         f0 = ones(size(time));
+%         f1 = ones(size(time)) * 10;
+%         configuration.f0 = f0;
+%         configuration.f1 = f1;
+% 
+% Fluorescence deflections are considered peaks when they exceed a threshold calculated as
+% k * f2 + f3 and they are provided by the user as configuration.threshold = {k, f2, f3}
+% Examples:
+%   2.91 median absolute deviations from the median:
+%     configuration.threshold = {2.91, @mad, @median}
+%   2.91 median absolute deviations from 0:
+%     configuration.threshold = {2.91, @mad, 0}
+%   2.00 standard deviations from the mean:
+%     configuration.threshold = {2.00, @std, @mean}
+% 
+% See examples and source code for detailed analysis steps and default parameters.
+% Units for time and frequency are seconds and hertz respectively.
+% 
 % 2019-03-22. Leonardo Molina.
-% 2022-07-13. Last modified.
+% 2022-08-31. Last modified.
 classdef MSA < handle
     properties
         configuration
@@ -70,9 +143,9 @@ classdef MSA < handle
             end
             
             % Use defaults for missing parameters.
-            defaults.conditionEpochs = {'Data', [-Inf, Inf]};
             defaults.artifactEpochs = [];
-            defaults.eventTimes = [];
+            defaults.conditionEpochs = {'Data', [-Inf, Inf]};
+            defaults.events = [];
             defaults.resamplingFrequency = NaN;
             defaults.lowpassFrequency = Inf;
             defaults.peakSeparation = 0.5;
@@ -225,7 +298,7 @@ classdef MSA < handle
             spikeCounts = zeros(nConditions, nCells);
             
             % Get indices for time triggers.
-            x = arrayfun(@(t) find(time >= t, 1, 'first'), configuration.eventTimes, 'UniformOutput', false);
+            x = arrayfun(@(t) find(time >= t, 1, 'first'), configuration.events, 'UniformOutput', false);
             k = ~cellfun(@isempty, x);
             eventTimeIds = [x{k}];
             
