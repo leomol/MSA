@@ -1,4 +1,10 @@
 ## Changelog
+* 2023-09-20
+	- `peakWidth` was incorrectly reported in terms of time tics, now is reported in terms of seconds.
+* 2023-09-14
+	- Added MUA plots.
+	- Added example script.
+	- Added method to get triggerAverage with resampling.
 * 2022-07-13
 	- Added option for detecting peaks using prominence or height (default).
 * 2022-06-29

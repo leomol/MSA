@@ -72,7 +72,7 @@
 % Units for time and frequency are seconds and hertz respectively.
 % 
 % 2019-03-22. Leonardo Molina.
-% 2022-08-31. Last modified.
+% 2023-09-20. Last modified.
 classdef MSA < handle
     properties
         configuration
@@ -101,6 +101,9 @@ classdef MSA < handle
         duration
         area
         peakThreshold
+
+        muaTime
+        muaCounts
     end
     
     properties (Access = private)
@@ -253,6 +256,7 @@ classdef MSA < handle
                 end
                 if any(+dff(:, u) >= peakThreshold(u))
                     [~, k, peakWidthCell] = findpeaks(+dff(:, u), peakDetectionMode, peakThreshold(u), 'MinPeakDistance', configuration.peakSeparation * frequency, 'WidthReference', 'halfheight');
+                    peakWidthCell = peakWidthCell / frequency;
                     peakMaskAll(k, u) = true;
                     peakWidth = cat(1, peakWidth, peakWidthCell(ismember(k, ids)));
                 end
@@ -450,11 +454,11 @@ classdef MSA < handle
         
         function figs = plotTriggerAverage(obj)
             figs(1) = figure('name', 'MSA: Peak-triggered average');
-            patches = plotTriggerAverage(obj.dff, obj.peakIds, obj.peakLabels, obj.windowTemplate, obj.frequency, obj.configuration.conditionEpochs(1:2:end), obj.cmap);
+            [~, ~, patches] = triggerAverage(obj.dff, obj.peakIds, obj.peakLabels, obj.windowTemplate, obj.frequency, [], obj.configuration.conditionEpochs(1:2:end), obj.cmap);
             % Append width and height stats to peak-triggered average plot.
             for c = 1:obj.nConditions
                 k = obj.peakLabels == c;
-                data = obj.peakWidth(k);
+                data = obj.peakWidth(k(1:numel(c))); % !!
                 widthMean = mean(data);
                 n = numel(widthMean);
                 widthSEM = std(data) / sqrt(n);
@@ -467,10 +471,46 @@ classdef MSA < handle
             
             if numel(obj.eventIds) > 0
                 figs(1) = figure('name', 'MSA: Event-triggered average');
-                plotTriggerAverage(obj.dff, obj.eventIds, obj.eventLabels, obj.windowTemplate, obj.frequency, obj.configuration.conditionEpochs(1:2:end), obj.cmap);
+                triggerAverage(obj.dff, obj.eventIds, obj.eventLabels, obj.windowTemplate, obj.frequency, [], obj.configuration.conditionEpochs(1:2:end), obj.cmap);
                 ylabel('df/f');
                 title('Event-triggered average');
             end
+        end
+
+        function [av, sem] = eventTriggerAverage(obj, time)
+            if numel(obj.eventIds) > 0
+                [av, sem] = triggerAverage(obj.dff, obj.eventIds, obj.eventLabels, obj.windowTemplate, obj.frequency, time, obj.configuration.conditionEpochs(1:2:end));
+            else
+                error('No events have been defined.');
+            end
+        end
+
+        function plotMUA(obj, binSize)
+            binWidth = round(binSize * obj.frequency);
+            % MUA at highest sampling rate.
+            [nRows, nCols] = size(obj.peakMaskAll);
+            id = zeros([nRows, nCols], 'uint64');
+            id(obj.peakMaskAll) = find(obj.peakMaskAll);
+            r = uint64((0:nCols - 1) * nRows);
+            id = id - r;
+            id = id(id > 0);
+            obj.muaCounts = histcounts(id, 'BinWidth', binWidth);
+            
+            % Plot.
+            figure('name', 'MSA: Multi-unit activity');
+            
+            % % Option 1 - line plot.
+            % y = repmat(y, binWidth, 1);
+            % y = y(1:nRows);
+            % plot(obj.time, y);
+            
+            % Option 2 - bar plot.
+            obj.muaTime = obj.time(1:binWidth:end);
+            bar(obj.muaTime, obj.muaCounts, 1.0);
+            
+            xlabel('Time (s)');
+            ylabel('MUA');
+            axis('tight');
         end
         
         function export(obj, prefix)
@@ -583,7 +623,7 @@ function [odd, half] = forceOdd(fractional)
     half = (odd - 1) / 2;
 end
 
-function patches = plotTriggerAverage(data, ids, labels, window, frequency, names, colors)
+function [averages, sems, patches] = triggerAverage(data, ids, labels, window, frequency, time, names, colors)
     % Filter out out-of-range traces.
     nSamples = numel(data);
     triggeredWindow = numel(window);
@@ -591,11 +631,18 @@ function patches = plotTriggerAverage(data, ids, labels, window, frequency, name
     k = ids > halfWindow & ids + halfWindow < nSamples;
     labels = labels(k);
     ids = ids(k);
-    time = window / frequency;
+    rawTime = window / frequency;
     nConditions = numel(names);
+    if numel(time) > 0
+        time = time(time >= rawTime(1) & time <= rawTime(end));
+        averages = NaN(numel(time), nConditions);
+    else
+        averages = NaN(numel(rawTime), nConditions);
+    end
+    sems = averages;
     patches = cell(nConditions, 1);
+    plotting = exist('colors', 'var');
     if numel(ids) > 0
-        hold('all');
         for c = 1:nConditions
             triggerIds = ids(labels == c);
             nTriggers = numel(triggerIds);
@@ -604,23 +651,38 @@ function patches = plotTriggerAverage(data, ids, labels, window, frequency, name
                 triggeredData = data(windowIds);
                 % Make sure matrix is nr x nc, particularly for 1 x nc.
                 triggeredData = reshape(triggeredData, size(windowIds));
-                av = mean(triggeredData, 1);
                 nTriggers = size(triggeredData, 1);
-                % Plot.
-                plot(time, av, 'Color', colors(c, :), 'HandleVisibility', 'off');
+                av = mean(triggeredData, 1);
                 sem = std(triggeredData, [], 1) / sqrt(nTriggers);
                 sem0 = sem(ceil(size(triggeredData, 2) / 2));
-                label = sprintf('%s n=%i, SEM=%f', names{c}, nTriggers, sem0);
-                vertices = [time; av + sem / 2];
-                vertices = cat(2, vertices, [fliplr(time); fliplr(av - sem / 2)])';
-                faces = 1:2 * triggeredWindow;
-                patches{c} = patch('Faces', faces, 'Vertices', vertices, 'FaceColor', colors(c, :), 'EdgeColor', 'none', 'FaceAlpha', 0.10, 'DisplayName', label);
+                if numel(time) > 0
+                    av = interp1(rawTime, av, time);
+                    sem = interp1(rawTime, sem, time);
+                    t = time;
+                else
+                    t = rawTime;
+                end
+                averages(:, c) = av;
+                sems(:, c) = sem;
+                
+                % Plot.
+                if plotting
+                    hold('all');
+                    plot(t, av, 'Color', colors(c, :), 'HandleVisibility', 'off');
+                    label = sprintf('%s n=%i, SEM=%f', names{c}, nTriggers, sem0);
+                    vertices = [t; av + sem / 2];
+                    vertices = cat(2, vertices, [fliplr(t); fliplr(av - sem / 2)])';
+                    faces = 1:2 * triggeredWindow;
+                    patches{c} = patch('Faces', faces, 'Vertices', vertices, 'FaceColor', colors(c, :), 'EdgeColor', 'none', 'FaceAlpha', 0.10, 'DisplayName', label);
+                end
             end
         end
-    else
+    elseif plotting
         text(0.5, 0.5, 'No triggers', 'HorizontalAlignment', 'center');
     end
-    legend('show');
-    xlabel('Time (s)');
-    axis('tight');
+    if plotting
+        legend('show');
+        xlabel('Time (s)');
+        axis('tight');
+    end
 end
